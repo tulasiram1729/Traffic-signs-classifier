@@ -4,7 +4,7 @@
 ## Deep Learning
 
 ## Project: Build a Traffic Sign Recognition Classifier
-This project involves training a model to recognize traffic signs. The deep learning approach turned out to be really powerful, yielding a 96% test accuracy.
+This project involves training a model to recognize traffic signs. The deep learning approach turned out to be really powerful, yielding a 96% test accuracy. The pipeline as well as the model architecture is described below.
 
 ---
 ## Import Relevant Modules
@@ -32,9 +32,6 @@ from matplotlib import style
 
 print('All modules imported')
 ```
-
-    All modules imported
-
 
 ---
 ### Helper functions
@@ -519,6 +516,63 @@ print(str(balanced_x.shape[0] - X_train.shape[0]) + " new examples created. "\
 ## Step 2: Design and Test a Model Architecture
 
 
+My final model consists of 2 convolutional layers with max pooling, and three fully connected hidden layers. I started with vanilla LeNet, simply because of its simplicity, but took an iterative approach and finished off with the following configuration.
+
+| Layer         		|     Description	        					| 
+|:---------------------:|:---------------------------------------------:| 
+| Input         		| 32x32x3 RGB image   							| 
+| Convolution 5x5, 6   	| 1x1 stride, valid padding, outputs 28x28x6 	|
+| RELU					|												|
+| Max pooling           | 2x2 stide, same padding, outputs 14x14x6      |
+| Convolution 5x5, 16   | 1x1 stride, valid padding, outputs 10x10x16   |
+| RELU                  |                                               |
+| Max pooling	      	| 2x2 stride, same padding, outputs 5x5x16   	|
+| Flatten         	    | outputs 400									|
+| Fully connected		| outputs 120  									|
+| RELU                  |                                               |
+| Dropout         		| keep probability 0.6  						|
+| Fully connected		| outputs 84  									|
+| RELU                  |                                               |
+| Dropout         		| keep probability 0.6  						|
+| Fully connected		| outputs 64  									|
+| RELU                  |                                               |
+| Dropout         		| keep probability 0.6  						|
+| Softmax        		| outputs 43  									|
+
+
+Here is a report of the iterative approach I took; not every combination has been shown as I probably did hundreds of them. A lot of times the validation accuracy wouldn't even climb up the 30s and 40s mountain. When that happened, I tested each part of the pipeline individually and usually it would be a problem in the augmentation routine.
+
+
+| Architecture | Augmentation | Normalization | Color | Details | Validation Accuracy |
+| :----------: | :----------: | :-----------: | :---: | :-----: | :-----------------: |
+| LeNet | No | No | Yes | 10 epochs | 87.5% |
+| LeNet | No | Global histogram equalization | Yes | 10 epochs | 90.3% |
+| LeNet | No | Adaptive histogram equalization, tiles=8x8 | Yes | 30 epochs | 91.2%|
+| LeNet | Random cropping, scaling and rotation | Adaptive histogram equalization, tiles=8x8 | Yes | 30 epochs | 89.2% |
+| LeNet + Dropout | Random cropping, scaling and rotation | Adaptive histogram equalization, tiles=8x8 | Yes | 30 epochs, keep_prob=0.5 | 92.4% |
+| LeNet + Dropout | Random cropping, scaling, rotation, translation | Adaptive histogram equalization, tiles=8x8 | Yes | 35 epochs, keep_prob=0.5 | 87.3% |
+| LeNet + Dropout + extra FC layer | Random cropping, scaling and 3 rotations | Adaptive histogram equalization, tiles=2x2 | Yes | 50 epochs, keep_prob=0.5 | 93.3% |
+| LeNet + Dropout + extra FC layer | Random cropping, scaling and 3 rotations | Adaptive histogram equalization, tiles=4x4 | Grayscale | 30 epochs, keep_prob=0.6 | 95.8% |
+| LeNet + Dropout + extra FC layer | Gaussian blur, scaling and 3 rotations | Adaptive histogram equalization, tiles=2x2 | Y of YCbCr | 40 epochs, keep_prob=0.6 | 97.8% |
+
+
+Other parameters that I played with were:
+1. Cliplimit and tilesize for contrast limiting adaptive histogram equalization, I tried a wide range of values and found the best results when I set both cliplimit and tile size to be 2 and 2x2 respectively
+2. Image augmentation types. I found success with gaussian blur, scaling, and 3 different rotations. Instead of hardcoding the values for them, I defined a range to add variety. For example, I chose a sigma between 0.25 and 1 for Gaussian Blur.
+3. Number of epochs, although I observed that a good model would show promising validation accuracy results in the first 10 epochs.
+4. Dropout probability. I found success in 0.6 and even 0.7 over 0.5. The reason could be that max pooling after convolution results in loss of information, leading to underfitting. 
+
+
+| Hyperparameter   | Value  | Comments                           |
+|:---------------: | :----: | :--------------------------------: | 
+| Number of epochs | 35     | I got more than 95% validation accuracy in about 5 epochs, the model stopped improving after ~ 35 epochs  |
+| Batch size       | 128    |                                    |
+| Learning rate    | 0.001  | I've used Adam optimizer in this project, which has an 'internal' learning rate, so I did not try hard to tune it.                                     |
+
+I could have done more aggresive hyperparameter tuning. With enough computing power, I would take the Caviar approach and parallel train a lot of models instead of babysitting one model for a long time.
+
+I used Adam optimization method over simple gradient descent, the 'momentum' in Adam optimizer provides much faster convergence.
+
 
 ```python
 tf.reset_default_graph()
@@ -866,11 +920,11 @@ show_images(images, 1,5, row_titles=["After resize"])
 ```
 
 
-![png](images/output_71_0.png)
+![png](images/output_75_0.png)
 
 
 
-![png](images/output_71_1.png)
+![png](images/output_75_1.png)
 
 
 
@@ -880,7 +934,7 @@ show_images(preprocessed_images, 1,5, 'gray', row_titles=["After preprocessing"]
 ```
 
 
-![png](images/output_72_0.png)
+![png](images/output_76_0.png)
 
 
 ### Predict the Sign Type for Each Image
@@ -910,10 +964,10 @@ print("Prediction: " + signs[prediction])
 
 
 
-![png](images/output_75_1.png)
+![png](images/output_79_1.png)
 
 
-Bingo! 1 / 1 correct.
+Bingo! 1 / 1 correct. This picture looks very clear, scaled, and without noise, very alike to the training examples.
 
 
 ```python
@@ -927,10 +981,12 @@ print("Prediction: " + signs[prediction])
 
 
 
-![png](images/output_77_1.png)
+![png](images/output_81_1.png)
 
 
-Oops! Was supposed to be 'Children crossing'. 1 / 2 correct.
+Oops! Was supposed to be 'Children crossing'. 1 / 2 correct. 
+
+*I will check the top 5 softmax probabilities for this picture below and reason why this model got it wrong.*
 
 
 ```python
@@ -944,7 +1000,7 @@ print("Prediction: " + signs[prediction])
 
 
 
-![png](images/output_79_1.png)
+![png](images/output_83_1.png)
 
 
 Nice! 2 / 3 correct.
@@ -961,7 +1017,7 @@ print("Prediction: " + signs[prediction])
 
 
 
-![png](images/output_81_1.png)
+![png](images/output_85_1.png)
 
 
 Nice again! 3 / 4 correct.
@@ -978,10 +1034,10 @@ print("Prediction: " + signs[prediction])
 
 
 
-![png](images/output_83_1.png)
+![png](images/output_87_1.png)
 
 
-Spot on! 4 / 5 correct. This is 80% accurate on the new images.
+Spot on! 4 / 5 correct. This is 80% accurate on the new images, which is very far off from the test accuracy of 96%. The reason for this discrepancy, I believe, is the baseline that we established in the first place, optimizing for better accuracy. I discuss this more below why accuracy is not the best metric for an unbalanced dataset like this. 
 
 ### Output Top 5 Softmax Probabilities For Each Image Found on the Web
 
@@ -1014,7 +1070,7 @@ for i in range(5):
 
 
 
-![png](images/output_87_1.png)
+![png](images/output_91_1.png)
 
 
 Spot on! Never had doubts on this.
@@ -1038,11 +1094,11 @@ for i in range(5):
 
 
 
-![png](images/output_89_1.png)
+![png](images/output_93_1.png)
 
 
 ---
-This is the one that we got wrong, but it makes me happy that 'Children crossing' ranks second with 43.4% probability. Let's plot a random example of road narrows and see if these signs come close.
+This is the one that we got wrong, but it is reassuring that 'Children crossing' ranks second with 43.4% probability. Let's plot a random example of road narrows and see if these signs come close.
 
 
 ```python
@@ -1057,10 +1113,10 @@ plt.imshow(X_train[np.where(y_train == 24)[0][np.random.randint(0,100)]])
 
 
 
-![png](images/output_91_1.png)
+![png](images/output_95_1.png)
 
 
-These signs do look very similar, but at least the neural network got it 43.4% right.
+These signs do look very similar. 
 
 ---
 
@@ -1083,7 +1139,7 @@ for i in range(5):
 
 
 
-![png](images/output_94_1.png)
+![png](images/output_98_1.png)
 
 
 Good 99% accuracy once again.
@@ -1107,7 +1163,7 @@ for i in range(5):
 
 
 
-![png](images/output_96_1.png)
+![png](images/output_100_1.png)
 
 
 This was a straight yield.
@@ -1131,10 +1187,15 @@ for i in range(5):
 
 
 
-![png](images/output_98_1.png)
+![png](images/output_102_1.png)
 
 
 No problems on this one either.
+
+### Reflection
+1. Accuracy is not a good metric for imbalanced datasets, since it is very likely that the prediction performance of smaller classes will be shadowed by performance of any bigger class. One could use, for instance, Kullback-Leibler divergence to measure how the distribution of the data compares to uniform probability distribution and decide if accuracy is the correct metric.
+2. The 'Children Crossing' image that we tested with our classifier was underrepresented in the training data (as we can see in the bar plot). Establishing the baseline with a different evaluation metric like F-1 score would have been a better choice. Then we would be optimizing for something which we would yield better precision and recall.
+
 
 ---
 ### Conclusion
